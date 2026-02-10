@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain Reputation Checker | Jason Klutts</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f6f7fb;
+            --text: #111827;
+            --muted: #4b5563;
+            --border: #e5e7eb;
+            --card: #ffffff;
+            --link: #2563eb;
+            --shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
+            --shadow-hover: 0 14px 34px rgba(17, 24, 39, 0.12);
+            --radius: 12px;
+            --container: 800px;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        a { color: var(--link); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        
+        .container {
+            width: min(100% - 2rem, var(--container));
+            margin: 0 auto;
+            padding: 2rem 0;
+        }
+        
+        .page-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1rem;
+            font-weight: 600;
+            color: var(--link);
+        }
+        
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+        
+        .page-subtitle {
+            color: var(--muted);
+            font-size: 1.05rem;
+        }
+        
+        .search-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            font-family: inherit;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--link);
+        }
+        
+        input[type="text"]::placeholder {
+            color: var(--muted);
+        }
+        
+        button {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-family: inherit;
+            font-weight: 600;
+            background: var(--link);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        
+        button:hover {
+            background: #1d4ed8;
+        }
+        
+        button:disabled {
+            background: var(--muted);
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--link);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: none;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .risk-banner {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .risk-score {
+            font-size: 3.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        
+        .risk-banner.low .risk-score { color: var(--success); }
+        .risk-banner.medium .risk-score { color: var(--warning); }
+        .risk-banner.high .risk-score { color: #ea580c; }
+        .risk-banner.critical .risk-score { color: var(--danger); }
+        
+        .risk-label {
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.5rem;
+        }
+        
+        .risk-banner.low .risk-label { color: var(--success); }
+        .risk-banner.medium .risk-label { color: var(--warning); }
+        .risk-banner.high .risk-label { color: #ea580c; }
+        .risk-banner.critical .risk-label { color: var(--danger); }
+        
+        .domain-analyzed {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 0.75rem;
+        }
+        
+        .content-section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+        }
+        
+        .content-section h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--text);
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: var(--muted);
+            font-weight: 500;
+        }
+        
+        .info-value {
+            font-weight: 600;
+            text-align: right;
+            max-width: 60%;
+            word-break: break-word;
+        }
+        
+        .info-value.success { color: var(--success); }
+        .info-value.warning { color: var(--warning); }
+        .info-value.danger { color: var(--danger); }
+        
+        .factors-list {
+            list-style: none;
+        }
+        
+        .factors-list li {
+            padding: 0.6rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .factors-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .factors-list li:before {
+            content: "!";
+            position: absolute;
+            left: 0;
+            color: var(--warning);
+            font-weight: 700;
+        }
+        
+        .page-footer {
+            text-align: center;
+            padding-top: 1rem;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 520px) {
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .page-title {
+                font-size: 1.5rem;
+            }
+            
+            .risk-score {
+                font-size: 2.5rem;
+            }
+            
+            .info-row {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            
+            .info-value {
+                text-align: left;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <a href="https://jasonklutts.com" class="back-link">← Back to jasonklutts.com</a>
+            <h1 class="page-title">Domain Reputation Checker</h1>
+            <p class="page-subtitle">Analyze domains for phishing indicators and suspicious characteristics</p>
+        </header>
+        
+        <div class="search-card">
+            <div class="input-group">
+                <input type="text" id="domain-input" placeholder="Enter domain or URL (e.g., example.com)" autofocus>
+                <button id="analyze-btn" onclick="analyzeDomain()">Analyze</button>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing domain...</p>
+        </div>
+        
+        <div class="results" id="results">
+            <div class="risk-banner" id="risk-banner">
+                <div class="risk-score" id="risk-score">0</div>
+                <div class="risk-label" id="risk-label">Unknown Risk</div>
+                <div class="domain-analyzed" id="domain-analyzed"></div>
+            </div>
+            
+            <div class="content-section" id="factors-section">
+                <h3>Risk Factors</h3>
+                <ul class="factors-list" id="factors-list"></ul>
+            </div>
+            
+            <div class="content-section">
+                <h3>WHOIS Information</h3>
+                <div class="info-row">
+                    <span class="info-label">Registrar</span>
+                    <span class="info-value" id="whois-registrar">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Domain Age</span>
+                    <span class="info-value" id="whois-age">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Created</span>
+                    <span class="info-value" id="whois-created">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Expires</span>
+                    <span class="info-value" id="whois-expires">-</span>
+                </div>
+            </div>
+            
+            <div class="content-section">
+                <h3>DNS Resolution</h3>
+                <div class="info-row">
+                    <span class="info-label">Status</span>
+                    <span class="info-value" id="dns-status">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">IP Addresses</span>
+                    <span class="info-value" id="dns-ips">-</span>
+                </div>
+            </div>
+            
+            <div class="content-section">
+                <h3>SSL Certificate</h3>
+                <div class="info-row">
+                    <span class="info-label">Status</span>
+                    <span class="info-value" id="ssl-status">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Issuer</span>
+                    <span class="info-value" id="ssl-issuer">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Expires</span>
+                    <span class="info-value" id="ssl-expiry">-</span>
+                </div>
+            </div>
+            
+            <div class="content-section">
+                <h3>Security Headers</h3>
+                <div class="info-row">
+                    <span class="info-label">Score</span>
+                    <span class="info-value" id="headers-score">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Present</span>
+                    <span class="info-value" id="headers-present">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Missing</span>
+                    <span class="info-value" id="headers-missing">-</span>
+                </div>
+            </div>
+            
+            <div class="content-section">
+                <h3>Domain Characteristics</h3>
+                <div class="info-row">
+                    <span class="info-label">Length</span>
+                    <span class="info-value" id="char-length">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Subdomains</span>
+                    <span class="info-value" id="char-subdomains">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Suspicious Keywords</span>
+                    <span class="info-value" id="char-keywords">-</span>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="page-footer">
+            <p>Built by <a href="https://jasonklutts.com">Jason Klutts</a> | <a href="https://github.com/jasonklutts/domain-reputation-checker">View on GitHub</a></p>
+        </footer>
+    </div>
+    
+    <script>
+        const input = document.getElementById('domain-input');
+        const btn = document.getElementById('analyze-btn');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') analyzeDomain();
+        });
+        
+        async function analyzeDomain() {
+            const domain = input.value.trim();
+            if (!domain) return;
+            
+            btn.disabled = true;
+            loading.classList.add('show');
+            results.classList.remove('show');
+            
+            try {
+                const response = await fetch('/lab/domain-checker/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ domain })
+                });
+                
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                alert('Error analyzing domain: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.classList.remove('show');
+            }
+        }
+        
+        function displayResults(data) {
+            // Risk banner
+            const banner = document.getElementById('risk-banner');
+            banner.className = 'risk-banner ' + data.risk_level;
+            document.getElementById('risk-score').textContent = data.risk_score;
+            document.getElementById('risk-label').textContent = data.risk_level + ' risk';
+            document.getElementById('domain-analyzed').textContent = 'Analyzed: ' + data.domain;
+            
+            // Risk factors
+            const factorsList = document.getElementById('factors-list');
+            const factorsSection = document.getElementById('factors-section');
+            factorsList.innerHTML = '';
+            
+            if (data.risk_factors.length > 0) {
+                factorsSection.style.display = 'block';
+                data.risk_factors.forEach(factor => {
+                    const li = document.createElement('li');
+                    li.textContent = factor;
+                    factorsList.appendChild(li);
+                });
+            } else {
+                factorsSection.style.display = 'none';
+            }
+            
+            // WHOIS
+            document.getElementById('whois-registrar').textContent = data.whois.registrar || 'Unknown';
+            const ageEl = document.getElementById('whois-age');
+            if (data.whois.domain_age_days !== null) {
+                const years = Math.floor(data.whois.domain_age_days / 365);
+                const days = data.whois.domain_age_days % 365;
+                if (years > 0) {
+                    ageEl.textContent = years + ' years, ' + days + ' days';
+                } else {
+                    ageEl.textContent = days + ' days';
+                }
+                if (data.whois.domain_age_days < 30) {
+                    ageEl.className = 'info-value danger';
+                } else if (data.whois.domain_age_days < 90) {
+                    ageEl.className = 'info-value warning';
+                } else {
+                    ageEl.className = 'info-value success';
+                }
+            } else {
+                ageEl.textContent = 'Unknown';
+                ageEl.className = 'info-value';
+            }
+            document.getElementById('whois-created').textContent = data.whois.creation_date || 'Unknown';
+            document.getElementById('whois-expires').textContent = data.whois.expiration_date || 'Unknown';
+            
+            // DNS
+            const dnsStatus = document.getElementById('dns-status');
+            if (data.dns.resolved) {
+                dnsStatus.textContent = 'Resolved';
+                dnsStatus.className = 'info-value success';
+            } else {
+                dnsStatus.textContent = 'Failed';
+                dnsStatus.className = 'info-value danger';
+            }
+            document.getElementById('dns-ips').textContent = 
+                data.dns.ip_addresses.length > 0 ? data.dns.ip_addresses.join(', ') : 'None';
+            
+            // SSL
+            const sslStatus = document.getElementById('ssl-status');
+            if (data.ssl.has_ssl) {
+                sslStatus.textContent = 'Valid';
+                sslStatus.className = 'info-value success';
+            } else {
+                sslStatus.textContent = 'Not Found';
+                sslStatus.className = 'info-value danger';
+            }
+            document.getElementById('ssl-issuer').textContent = data.ssl.issuer || 'N/A';
+            document.getElementById('ssl-expiry').textContent = data.ssl.expiry || 'N/A';
+            
+            // Security Headers
+            const headersScoreEl = document.getElementById('headers-score');
+            if (data.security_headers.error) {
+                headersScoreEl.textContent = 'N/A';
+                headersScoreEl.className = 'info-value';
+            } else {
+                headersScoreEl.textContent = data.security_headers.score + '%';
+                if (data.security_headers.score >= 80) {
+                    headersScoreEl.className = 'info-value success';
+                } else if (data.security_headers.score >= 50) {
+                    headersScoreEl.className = 'info-value warning';
+                } else {
+                    headersScoreEl.className = 'info-value danger';
+                }
+            }
+            document.getElementById('headers-present').textContent = 
+                data.security_headers.headers_present.length > 0 
+                    ? data.security_headers.headers_present.join(', ') 
+                    : 'None';
+            document.getElementById('headers-missing').textContent = 
+                data.security_headers.headers_missing.length > 0 
+                    ? data.security_headers.headers_missing.join(', ') 
+                    : 'None';
+            
+            // Characteristics
+            document.getElementById('char-length').textContent = data.characteristics.length + ' characters';
+            document.getElementById('char-subdomains').textContent = data.characteristics.subdomain_count;
+            document.getElementById('char-keywords').textContent = 
+                data.characteristics.suspicious_keywords.length > 0 
+                    ? data.characteristics.suspicious_keywords.join(', ') 
+                    : 'None';
+            
+            results.classList.add('show');
+        }
+    </script>
+</body>
+</html>
